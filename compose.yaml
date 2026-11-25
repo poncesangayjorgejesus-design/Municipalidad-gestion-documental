@@ -1,0 +1,15 @@
+services:
+  web:
+    build: .
+    init: true
+    ports:
+      - target: 8000
+        published: "${HOST_PORT:-5000}"
+        host_ip: "${HOST_BIND_IP:-127.0.0.1}"
+    environment:
+      DB_HOST: "${DB_HOST:-host.docker.internal}"
+      DB_PORT: "${DB_PORT:-3306}"
+      DB_NAME: "${DB_NAME:-municipalidad_yau}"
+      DB_USER: "${DB_USER:-app_yau}"
+      DB_PASSWORD: "${DB_PASSWORD:-YauDemo2026_db}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-YauDemo2026_admin}"
