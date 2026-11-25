@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import BandejaExpedientes from './BandejaExpedientes';
 import ConsultaExpediente from './ConsultaExpediente';
 import './estilos.css';
 
@@ -19,27 +20,27 @@ function App() {
           signal: solicitud.signal,
         });
 
-        if (!respuesta.ok) {
-          throw new Error('No se pudo verificar la sesión.');
-        }
+        if (!respuesta.ok) throw new Error('Error de sesión');
 
         const datos = await respuesta.json();
-        if (!solicitud.signal.aborted) {
-          setPersonal(datos.personal === true);
-        }
+        if (!solicitud.signal.aborted) setPersonal(datos.personal === true);
       } catch {
         if (!solicitud.signal.aborted) {
           setError('No se pudo verificar la sesión con el servidor.');
         }
       } finally {
-        if (!solicitud.signal.aborted) {
-          setVerificando(false);
-        }
+        if (!solicitud.signal.aborted) setVerificando(false);
       }
     }
 
     recuperarSesion();
     return () => solicitud.abort();
+  }, []);
+
+  const volverAlAcceso = useCallback(() => {
+    setPersonal(false);
+    setVista('personal');
+    setError('Tu sesión terminó. Inicia sesión nuevamente.');
   }, []);
 
   async function cambiarSesion(iniciar, clave) {
@@ -88,6 +89,8 @@ function App() {
     setVista(destino);
   }
 
+  const mostrandoBandeja = vista === 'personal' && personal;
+
   return (
     <div className="min-vh-100 bg-body-tertiary">
       <header className="barra-yau text-white">
@@ -113,7 +116,7 @@ function App() {
               onClick={() => navegar('personal')}
             >
               <i className="bi bi-shield-lock me-2" aria-hidden="true" />
-              {personal ? 'Área del personal' : 'Acceso del personal'}
+              {personal ? 'Trámites' : 'Acceso del personal'}
             </button>
             {personal && (
               <button
@@ -134,49 +137,49 @@ function App() {
           <p className="alert alert-danger" role="alert">{error}</p>
         )}
 
-        <div className="row justify-content-center">
-          <div className={vista === 'consulta' ? 'col-lg-8' : 'col-md-8 col-lg-5'}>
-            {vista === 'consulta' ? (
+        {mostrandoBandeja ? (
+          <BandejaExpedientes alVencerSesion={volverAlAcceso} />
+        ) : (
+          <div className="row justify-content-center">
+            <div className={vista === 'consulta' ? 'col-lg-8' : 'col-md-8 col-lg-5'}>
               <section className="card portada-yau shadow-sm">
                 <div className="card-body p-4">
-                  <h1 className="h3 mb-3">Consulta tu expediente</h1>
-                  <ConsultaExpediente />
-                </div>
-              </section>
-            ) : (
-              <section className="card portada-yau shadow-sm">
-                <div className="card-body p-4">
-                  <h1 className="h3 mb-3">
-                    {personal ? 'Área del personal' : 'Acceso del personal'}
-                  </h1>
-
-                  {verificando && <p role="status">Verificando sesión…</p>}
-                  {personal && <p className="mb-0" role="status">Sesión iniciada.</p>}
-
-                  {!verificando && !personal && (
-                    <form onSubmit={iniciarSesion}>
-                      <label className="form-label" htmlFor="clave-personal">
-                        Contraseña
-                      </label>
-                      <input
-                        className="form-control mb-3"
-                        id="clave-personal"
-                        name="clave"
-                        type="password"
-                        autoComplete="current-password"
-                        required
-                        disabled={ocupado}
-                      />
-                      <button className="btn btn-primary" type="submit" disabled={ocupado}>
-                        {ocupado ? 'Ingresando…' : 'Iniciar sesión'}
-                      </button>
-                    </form>
+                  {vista === 'consulta' ? (
+                    <>
+                      <h1 className="h3 mb-3">Consulta tu expediente</h1>
+                      <ConsultaExpediente />
+                    </>
+                  ) : (
+                    <>
+                      <h1 className="h3 mb-3">Acceso del personal</h1>
+                      {verificando ? (
+                        <p className="mb-0" role="status">Verificando sesión…</p>
+                      ) : (
+                        <form onSubmit={iniciarSesion}>
+                          <label className="form-label" htmlFor="clave-personal">
+                            Contraseña
+                          </label>
+                          <input
+                            className="form-control mb-3"
+                            id="clave-personal"
+                            name="clave"
+                            type="password"
+                            autoComplete="current-password"
+                            required
+                            disabled={ocupado}
+                          />
+                          <button className="btn btn-primary" type="submit" disabled={ocupado}>
+                            {ocupado ? 'Ingresando…' : 'Iniciar sesión'}
+                          </button>
+                        </form>
+                      )}
+                    </>
                   )}
                 </div>
               </section>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
