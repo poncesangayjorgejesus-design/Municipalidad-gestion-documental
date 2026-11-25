@@ -90,7 +90,13 @@ export default function BandejaExpedientes({ alVencerSesion }) {
   }
 
   function actualizarBandeja() {
+    setCargando(true);
     setActualizacion((anterior) => anterior + 1);
+  }
+
+  function volverABandeja() {
+    setExpedienteAbierto(null);
+    actualizarBandeja();
   }
 
   if (expedienteAbierto !== null) {
@@ -98,7 +104,7 @@ export default function BandejaExpedientes({ alVencerSesion }) {
       <FichaExpediente
         key={expedienteAbierto}
         id={expedienteAbierto}
-        alVolver={() => setExpedienteAbierto(null)}
+        alVolver={volverABandeja}
         alVencerSesion={alVencerSesion}
       />
     );
@@ -201,7 +207,10 @@ export default function BandejaExpedientes({ alVencerSesion }) {
           {cargando && (
             <p className="text-body-secondary mb-0" role="status">Cargando expedientes…</p>
           )}
-          {error && <p className="alert alert-danger mb-0" role="alert">{error}</p>}
+
+          {!cargando && error && (
+            <p className="alert alert-danger mb-0" role="alert">{error}</p>
+          )}
 
           {!cargando && datos && (
             <>
