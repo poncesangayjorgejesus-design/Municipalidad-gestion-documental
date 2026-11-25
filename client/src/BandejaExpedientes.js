@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import RegistroExpediente from './RegistroExpediente';
 
 const estados = {
   recibido: { nombre: 'Recibido', color: 'text-bg-secondary' },
@@ -116,6 +117,11 @@ export default function BandejaExpedientes({ alVencerSesion }) {
         </dl>
       )}
 
+      <RegistroExpediente
+        alVencerSesion={alVencerSesion}
+        alRegistrar={() => setActualizacion((anterior) => anterior + 1)}
+      />
+      
       <section className="card portada-yau shadow-sm" aria-labelledby="titulo-bandeja">
         <div className="card-body p-3 p-md-4">
           <h2 className="h5 mb-3" id="titulo-bandeja">Bandeja de expedientes</h2>
