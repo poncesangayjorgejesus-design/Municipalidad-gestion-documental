@@ -43,3 +43,36 @@ app.use('/api', session({
   saveUninitialized: false,
   cookie: { httpOnly: true, sameSite: 'strict', maxAge: 8 * 60 * 60 * 1000 },
 }));
+
+app.get('/api/salud', async (_req, res) => {
+  try {
+    await filas(base, 'SELECT id FROM vista_expedientes LIMIT 1');
+    const tipos = await filas(base, 'SELECT id FROM tipos_tramite LIMIT 1');
+    if (!tipos.length) throw new Error('Catálogos vacíos.');
+    res.json({ servidor: 'activo', base_de_datos: 'lista' });
+  } catch {
+    res.status(503).json({ servidor: 'activo', base_de_datos: 'no disponible' });
+  }
+});
+
+const hash = (valor) => createHash('sha256').update(valor).digest();
+
+app.get('/api/sesion', (req, res) => res.json({ personal: req.session.personal === true }));
+app.post('/api/sesion', (req, res, next) => {
+  const enviada = typeof req.body?.clave === 'string' ? req.body.clave : '';
+  if (!timingSafeEqual(hash(enviada), hash(clave))) throw new ErrorHttp(401, 'Contraseña incorrecta.');
+  req.session.regenerate((error) => {
+    if (error) return next(error);
+    req.session.personal = true;
+    req.session.save((errorGuardado) => {
+      if (errorGuardado) return next(errorGuardado);
+      res.json({ personal: true });
+    });
+  });
+});
+app.post('/api/sesion/salir', (req, res, next) => {
+  req.session.destroy((error) => {
+    if (error) return next(error);
+    res.clearCookie('yau.sid').sendStatus(204);
+  });
+});
