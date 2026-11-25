@@ -11,3 +11,7 @@ const app = express();
 const base = crearBase();
 const clave = process.env.ADMIN_PASSWORD;
 const clienteDist = process.env.CLIENT_DIST || fileURLToPath(new URL('../../client/dist/', import.meta.url));
+
+if (!clave || !process.env.DB_PASSWORD) {
+  throw new Error('Configura ADMIN_PASSWORD y DB_PASSWORD antes de iniciar el servidor.');
+}
