@@ -65,3 +65,36 @@ export function curriculos(base) {
     });
     res.json(detalle);
   });
+
+  router.post('/:id/orientacion', async (req, res) => {
+    const { probabilidad } = await evaluar(base, identificador(req.params.id), req.body?.resultados);
+    res.json({ probabilidad, mensaje: probabilidad >= 0.5
+      ? 'Revisar evidencias pendientes'
+      : 'Evidencias aparentemente completas' });
+  });
+
+  router.post('/:id/revisiones', async (req, res) => {
+    const id = identificador(req.params.id);
+    const decision = texto(req.body?.decision, 20, 'Decisión', true);
+    const motivo = texto(req.body?.motivo, 300, 'Motivo', true);
+
+    await transaccion(base, async (conexion) => {
+      const { requisitos, resultados, probabilidad } = await evaluar(conexion, id, req.body?.resultados);
+      const [valida] = await filas(conexion, 'SELECT 1 FROM decisiones_cv WHERE codigo = ?', [decision]);
+      if (!valida) throw new ErrorHttp(400, 'Selecciona una decisión válida.');
+      if (decision === 'preseleccionar' && resultados.some((valor) => valor !== 'cumple')) {
+        throw new ErrorHttp(400, 'La preselección requiere acreditar todos los requisitos.');
+      }
+      const revision = await filas(conexion, `INSERT INTO revisiones_cv
+        (postulacion_id, decision_codigo, motivo, prob_revision, version_modelo) VALUES (?, ?, ?, ?, ?)`,
+      [id, decision, motivo, probabilidad.toFixed(4), versionModelo]);
+      for (const [i, requisito] of requisitos.entries()) {
+        await filas(conexion, 'INSERT INTO verificaciones_cv (revision_id, requisito_id, resultado) VALUES (?, ?, ?)',
+          [revision.insertId, requisito.id, resultados[i]]);
+      }
+    });
+    res.sendStatus(204);
+  });
+
+  return router;
+}
