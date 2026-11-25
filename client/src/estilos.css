@@ -1,0 +1,32 @@
+:root {
+  --bs-body-bg: #f6f4f9;
+  --bs-body-color: #2c2637;
+  --bs-secondary-color: #61586d;
+}
+
+.barra-yau {
+  color: #fff;
+  background: linear-gradient(108deg, #242131, #463365);
+  border-bottom: 2px solid #a085d1;
+}
+
+.barra-yau small {
+  color: #dfd6ef;
+}
+
+.marca-yau {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  border-radius: 0.65rem;
+  background: #e9dff9;
+  color: #482b76;
+}
+
+.portada-yau {
+  --bs-card-bg: #fff;
+  --bs-card-border-color: #e0dbe9;
+  border-top: 4px solid #8264b6;
+}
