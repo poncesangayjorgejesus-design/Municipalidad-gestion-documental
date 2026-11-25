@@ -27,3 +27,18 @@ export async function filas(base, sql, parametros = []) {
   const [resultado] = await base.execute(sql, parametros);
   return resultado;
 }
+
+export async function transaccion(base, operacion) {
+  const conexion = await base.getConnection();
+  try {
+    await conexion.beginTransaction();
+    const resultado = await operacion(conexion);
+    await conexion.commit();
+    return resultado;
+  } catch (error) {
+    await conexion.rollback();
+    throw error;
+  } finally {
+    conexion.release();
+  }
+}
