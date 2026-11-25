@@ -76,3 +76,28 @@ app.post('/api/sesion/salir', (req, res, next) => {
     res.clearCookie('yau.sid').sendStatus(204);
   });
 });
+
+app.use('/api/consulta', expedientesPublicos(base));
+app.use('/api/personal', (req, _res, next) => {
+  if (!req.session.personal) throw new ErrorHttp(401, 'Inicia sesión como personal.');
+  next();
+});
+app.use('/api/personal/curriculos', curriculos(base));
+app.use('/api/personal', expedientesPersonal(base));
+app.use('/api', (_req, _res) => { throw new ErrorHttp(404, 'Ruta no encontrada.'); });
+app.use(express.static(clienteDist));
+app.use((_req, _res) => { throw new ErrorHttp(404, 'Página no encontrada.'); });
+app.use((error, _req, res, _next) => {
+  const limite = error.code === 'LIMIT_FILE_SIZE' || error.status === 413;
+  const status = limite ? 413 : error instanceof ErrorHttp ? error.status :
+    (error instanceof SyntaxError && error.status === 400) || error.name === 'MulterError' ? 400 : 500;
+  if (status === 500) console.error(error.code || error.name, error.message);
+  const mensaje = error instanceof ErrorHttp ? error.message :
+    status === 413 ? 'El archivo supera el tamaño permitido.' :
+    status === 400 ? 'La solicitud tiene un formato inválido.' :
+    'No se pudo completar la operación. Comprueba la conexión a la base en /api/salud.';
+  res.status(status).json({ mensaje });
+});
+
+app.listen(Number(process.env.PORT || 8000), '0.0.0.0',
+  () => console.log(`Servidor Yau activo en el puerto ${process.env.PORT || 8000}`));
