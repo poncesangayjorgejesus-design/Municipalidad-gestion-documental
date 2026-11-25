@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import BandejaExpedientes from './BandejaExpedientes';
 import ConsultaExpediente from './ConsultaExpediente';
+import Curriculos from './Curriculos';
 import './estilos.css';
 
 function App() {
@@ -89,7 +90,16 @@ function App() {
     setVista(destino);
   }
 
-  const mostrandoBandeja = vista === 'personal' && personal;
+  const opciones = [
+    ['consulta', 'Consulta ciudadana', 'search'],
+    personal
+      ? ['personal', 'Trámites', 'folder2-open']
+      : ['personal', 'Acceso del personal', 'shield-lock'],
+  ];
+
+  if (personal) {
+    opciones.push(['curriculos', 'Currículos', 'person-vcard']);
+  }
 
   return (
     <div className="min-vh-100 bg-body-tertiary">
@@ -101,23 +111,19 @@ function App() {
           </div>
 
           <nav className="d-flex flex-wrap gap-2" aria-label="Navegación principal">
-            <button
-              className={`btn btn-sm ${vista === 'consulta' ? 'btn-light' : 'btn-outline-light'}`}
-              type="button"
-              aria-current={vista === 'consulta' ? 'page' : undefined}
-              onClick={() => navegar('consulta')}
-            >
-              Consulta ciudadana
-            </button>
-            <button
-              className={`btn btn-sm ${vista === 'personal' ? 'btn-light' : 'btn-outline-light'}`}
-              type="button"
-              aria-current={vista === 'personal' ? 'page' : undefined}
-              onClick={() => navegar('personal')}
-            >
-              <i className="bi bi-shield-lock me-2" aria-hidden="true" />
-              {personal ? 'Trámites' : 'Acceso del personal'}
-            </button>
+            {opciones.map(([destino, etiqueta, icono]) => (
+              <button
+                key={destino}
+                className={`btn btn-sm ${vista === destino ? 'btn-light' : 'btn-outline-light'}`}
+                type="button"
+                aria-current={vista === destino ? 'page' : undefined}
+                onClick={() => navegar(destino)}
+              >
+                <i className={`bi bi-${icono} me-2`} aria-hidden="true" />
+                {etiqueta}
+              </button>
+            ))}
+
             {personal && (
               <button
                 className="btn btn-sm btn-outline-light"
@@ -137,48 +143,56 @@ function App() {
           <p className="alert alert-danger" role="alert">{error}</p>
         )}
 
-        {mostrandoBandeja ? (
-          <BandejaExpedientes alVencerSesion={volverAlAcceso} />
-        ) : (
+        {vista === 'consulta' && (
           <div className="row justify-content-center">
-            <div className={vista === 'consulta' ? 'col-lg-8' : 'col-md-8 col-lg-5'}>
+            <div className="col-lg-8">
               <section className="card portada-yau shadow-sm">
                 <div className="card-body p-4">
-                  {vista === 'consulta' ? (
-                    <>
-                      <h1 className="h3 mb-3">Consulta tu expediente</h1>
-                      <ConsultaExpediente />
-                    </>
+                  <h1 className="h3 mb-3">Consulta tu expediente</h1>
+                  <ConsultaExpediente />
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
+
+        {vista === 'personal' && !personal && (
+          <div className="row justify-content-center">
+            <div className="col-md-8 col-lg-5">
+              <section className="card portada-yau shadow-sm">
+                <div className="card-body p-4">
+                  <h1 className="h3 mb-3">Acceso del personal</h1>
+                  {verificando ? (
+                    <p className="mb-0" role="status">Verificando sesión…</p>
                   ) : (
-                    <>
-                      <h1 className="h3 mb-3">Acceso del personal</h1>
-                      {verificando ? (
-                        <p className="mb-0" role="status">Verificando sesión…</p>
-                      ) : (
-                        <form onSubmit={iniciarSesion}>
-                          <label className="form-label" htmlFor="clave-personal">
-                            Contraseña
-                          </label>
-                          <input
-                            className="form-control mb-3"
-                            id="clave-personal"
-                            name="clave"
-                            type="password"
-                            autoComplete="current-password"
-                            required
-                            disabled={ocupado}
-                          />
-                          <button className="btn btn-primary" type="submit" disabled={ocupado}>
-                            {ocupado ? 'Ingresando…' : 'Iniciar sesión'}
-                          </button>
-                        </form>
-                      )}
-                    </>
+                    <form onSubmit={iniciarSesion}>
+                      <label className="form-label" htmlFor="clave-personal">Contraseña</label>
+                      <input
+                        className="form-control mb-3"
+                        id="clave-personal"
+                        name="clave"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        disabled={ocupado}
+                      />
+                      <button className="btn btn-primary" type="submit" disabled={ocupado}>
+                        {ocupado ? 'Ingresando…' : 'Iniciar sesión'}
+                      </button>
+                    </form>
                   )}
                 </div>
               </section>
             </div>
           </div>
+        )}
+
+        {vista === 'personal' && personal && (
+          <BandejaExpedientes alVencerSesion={volverAlAcceso} />
+        )}
+
+        {vista === 'curriculos' && personal && (
+          <Curriculos alVencerSesion={volverAlAcceso} />
         )}
       </main>
     </div>
