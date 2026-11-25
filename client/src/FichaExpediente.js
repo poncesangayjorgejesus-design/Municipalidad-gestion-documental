@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+const limitePdf = 2_000_000;
+
 const formatoFecha = new Intl.DateTimeFormat('es-PE', {
   dateStyle: 'medium',
   timeStyle: 'short',
@@ -21,8 +23,8 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [actualizacion, setActualizacion] = useState(0);
-  const [guardando, setGuardando] = useState(false);
-  const [avisoCambio, setAvisoCambio] = useState(null);
+  const [operacion, setOperacion] = useState('');
+  const [aviso, setAviso] = useState(null);
 
   useEffect(() => {
     const solicitud = new AbortController();
@@ -49,9 +51,7 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
           throw new Error('El expediente ya no está disponible.');
         }
 
-        if (!respuesta.ok) {
-          throw new Error('No se pudo cargar la ficha.');
-        }
+        if (!respuesta.ok) throw new Error('No se pudo cargar la ficha.');
 
         const resultado = await respuesta.json();
         if (!solicitud.signal.aborted) setDatos(resultado);
@@ -75,14 +75,14 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
 
   async function cambiarEstado(evento) {
     evento.preventDefault();
-    if (guardando || cargando || error) return;
+    if (operacion || cargando || error) return;
 
-    const formulario = new FormData(evento.currentTarget);
-    const destino = formulario.get('destino');
+    const campos = new FormData(evento.currentTarget);
+    const destino = campos.get('destino');
     const historialId = String(datos.expediente.historial_id);
 
-    setGuardando(true);
-    setAvisoCambio(null);
+    setOperacion('estado');
+    setAviso(null);
 
     try {
       const respuesta = await fetch(`${ruta}/estado`, {
@@ -100,7 +100,7 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
       }
 
       if (respuesta.status === 409) {
-        setAvisoCambio({
+        setAviso({
           clase: 'warning',
           texto: 'El expediente cambió mientras lo revisabas. Verifica el estado actual antes de guardar.',
         });
@@ -113,20 +113,60 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
         throw new Error(resultado?.mensaje || 'No se pudo guardar el nuevo estado.');
       }
 
-      setAvisoCambio({
-        clase: 'success',
-        texto: 'Estado actualizado correctamente.',
-      });
+      setAviso({ clase: 'success', texto: 'Estado actualizado correctamente.' });
       actualizarFicha();
     } catch (problema) {
-      setAvisoCambio({
-        clase: 'danger',
-        texto: problema.message || 'No se pudo conectar con el servidor.',
-      });
+      setAviso({ clase: 'danger', texto: problema.message });
     } finally {
-      setGuardando(false);
+      setOperacion('');
     }
   }
+
+  async function adjuntarDocumento(evento) {
+    evento.preventDefault();
+    if (operacion || cargando || error) return;
+
+    const formulario = evento.currentTarget;
+    const campos = new FormData(formulario);
+    const archivo = campos.get('pdf');
+
+    if (!archivo || !/\.pdf$/i.test(archivo.name) || archivo.size === 0 || archivo.size > limitePdf) {
+      setAviso({ clase: 'warning', texto: 'Selecciona un archivo PDF de hasta 2 MB.' });
+      return;
+    }
+
+    setOperacion('documento');
+    setAviso(null);
+
+    try {
+      const respuesta = await fetch(`${ruta}/documentos`, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: campos,
+      });
+
+      if (respuesta.status === 401) {
+        alVencerSesion();
+        return;
+      }
+
+      if (!respuesta.ok) {
+        const resultado = await respuesta.json().catch(() => null);
+        throw new Error(resultado?.mensaje || 'No se pudo adjuntar el PDF.');
+      }
+
+      formulario.reset();
+      setAviso({ clase: 'success', texto: 'PDF adjuntado correctamente.' });
+      actualizarFicha();
+    } catch (problema) {
+      setAviso({ clase: 'danger', texto: problema.message });
+    } finally {
+      setOperacion('');
+    }
+  }
+
+  const ocupado = Boolean(operacion);
+  const formularioBloqueado = cargando || ocupado || Boolean(error);
 
   return (
     <>
@@ -135,16 +175,17 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
           className="btn btn-outline-secondary"
           type="button"
           onClick={alVolver}
-          disabled={guardando}
+          disabled={ocupado}
         >
           <i className="bi bi-arrow-left me-2" aria-hidden="true" />
           Volver a la bandeja
         </button>
+
         <button
           className="btn btn-outline-secondary"
           type="button"
-          disabled={cargando || guardando}
           onClick={actualizarFicha}
+          disabled={cargando || ocupado}
         >
           <i className="bi bi-arrow-clockwise me-2" aria-hidden="true" />
           Actualizar ficha
@@ -154,12 +195,9 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
       {cargando && <p className="text-body-secondary" role="status">Cargando ficha…</p>}
       {error && <p className="alert alert-danger" role="alert">{error}</p>}
 
-      {avisoCambio && (
-        <p
-          className={`alert alert-${avisoCambio.clase}`}
-          role={avisoCambio.clase === 'success' ? 'status' : 'alert'}
-        >
-          {avisoCambio.texto}
+      {aviso && (
+        <p className={`alert alert-${aviso.clase}`} role={aviso.clase === 'success' ? 'status' : 'alert'}>
+          {aviso.texto}
         </p>
       )}
 
@@ -197,10 +235,8 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
                   key={datos.expediente.historial_id}
                   onSubmit={cambiarEstado}
                 >
-                  <fieldset disabled={cargando || guardando || Boolean(error)}>
-                    <label className="form-label" htmlFor="nuevo-estado">
-                      Nuevo estado
-                    </label>
+                  <fieldset disabled={formularioBloqueado}>
+                    <label className="form-label" htmlFor="nuevo-estado">Nuevo estado</label>
                     <select
                       className="form-select mb-3"
                       id="nuevo-estado"
@@ -210,14 +246,12 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
                     >
                       <option value="" disabled>Selecciona un estado</option>
                       {datos.estados.map((estado) => (
-                        <option key={estado.codigo} value={estado.codigo}>
-                          {estado.nombre}
-                        </option>
+                        <option key={estado.codigo} value={estado.codigo}>{estado.nombre}</option>
                       ))}
                     </select>
 
                     <button className="btn btn-primary" type="submit">
-                      {guardando ? 'Guardando…' : 'Actualizar estado'}
+                      {operacion === 'estado' ? 'Guardando…' : 'Actualizar estado'}
                     </button>
                   </fieldset>
                 </form>
@@ -225,7 +259,7 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
             </div>
           </section>
 
-          <section className="card portada-yau shadow-sm" aria-labelledby="historial-ficha">
+          <section className="card portada-yau shadow-sm mb-4" aria-labelledby="historial-ficha">
             <div className="card-body p-3 p-md-4">
               <h2 className="h5 mb-3" id="historial-ficha">Historial de estados</h2>
 
@@ -242,6 +276,46 @@ export default function FichaExpediente({ id, alVolver, alVencerSesion }) {
                       <time className="text-body-secondary small" dateTime={movimiento.fecha}>
                         {formatoFecha.format(new Date(movimiento.fecha))}
                       </time>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          <section className="card portada-yau shadow-sm" aria-labelledby="documentos-ficha">
+            <div className="card-body p-3 p-md-4">
+              <h2 className="h5 mb-3" id="documentos-ficha">Documentos del expediente</h2>
+
+              <form onSubmit={adjuntarDocumento}>
+                <fieldset disabled={formularioBloqueado}>
+                  <label className="form-label" htmlFor="archivo-pdf">Archivo PDF (hasta 2 MB)</label>
+                  <input
+                    className="form-control mb-3"
+                    id="archivo-pdf"
+                    name="pdf"
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    required
+                  />
+
+                  <button className="btn btn-primary" type="submit">
+                    <i className="bi bi-paperclip me-2" aria-hidden="true" />
+                    {operacion === 'documento' ? 'Adjuntando…' : 'Adjuntar PDF'}
+                  </button>
+                </fieldset>
+              </form>
+
+              {datos.documentos.length === 0 ? (
+                <p className="text-body-secondary mt-3 mb-0">Aún no hay documentos adjuntos.</p>
+              ) : (
+                <ul className="list-group list-group-flush mt-3">
+                  {datos.documentos.map((documento) => (
+                    <li className="list-group-item px-0" key={documento.id}>
+                      <a className="text-break" href={`/api/personal/documentos/${documento.id}`}>
+                        <i className="bi bi-download me-2" aria-hidden="true" />
+                        {documento.nombre}
+                      </a>
                     </li>
                   ))}
                 </ul>
