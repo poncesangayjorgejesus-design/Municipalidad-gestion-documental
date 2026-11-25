@@ -18,3 +18,11 @@ export function identificador(valor) {
   }
   return String(valor);
 }
+
+export function texto(valor, maximo, campo, requerido = false) {
+  const contenido = typeof valor === 'string' ? valor.trim() : '';
+  if (contenido.length > maximo || (requerido && !contenido)) {
+    throw new ErrorHttp(400, `${campo}: ingresa hasta ${maximo} caracteres.`);
+  }
+  return contenido;
+}
