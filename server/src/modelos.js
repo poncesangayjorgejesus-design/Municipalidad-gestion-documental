@@ -21,3 +21,18 @@ function inferir(modelo, datos) {
   ), modelo.sesgo);
   return modelo.activacion === 'sigmoid' ? 1 / (1 + Math.exp(-puntuacion)) : puntuacion;
 }
+
+export function estimarDemora(tipo, pendientes, anexos, derivaciones) {
+  const familia = familias.get(tipo) ?? tipo;
+  const datos = tipos.map((codigo) => Number(codigo === familia));
+  return Math.max(0, inferir(modelos.tramites, [...datos, pendientes, anexos, derivaciones]));
+}
+
+export function orientarCurriculo(resultados) {
+  const faltantes = resultados.filter((valor) => valor === 'falta').length / resultados.length;
+  const ilegibles = resultados.filter((valor) => valor === 'ilegible').length / resultados.length;
+  return inferir(modelos.curriculos, [faltantes, ilegibles]);
+}
+
+export const versionModelo = modelos.version;
+export const tiposModelo = new Set([...tipos, ...familias.keys()]);
