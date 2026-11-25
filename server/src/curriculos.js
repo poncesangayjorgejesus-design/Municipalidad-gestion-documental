@@ -14,3 +14,22 @@ async function cargarPostulacion(base, id) {
     [postulacion.convocatoria_id]);
   return { postulacion, requisitos };
 }
+
+async function evaluar(base, id, entrada) {
+  const { requisitos } = await cargarPostulacion(base, id);
+  const resultados = requisitos.map(({ id: requisito }) => entrada?.[requisito]);
+  if (!resultados.length || resultados.some((valor) => !resultadosValidos.has(valor))) {
+    throw new ErrorHttp(400, 'Verifica todos los requisitos de la convocatoria.');
+  }
+  return { requisitos, resultados, probabilidad: orientarCurriculo(resultados) };
+}
+
+export function curriculos(base) {
+  const router = Router();
+
+  router.get('/', async (_req, res) => {
+    const convocatorias = await filas(base, 'SELECT id, codigo, puesto FROM convocatorias ORDER BY id DESC');
+    const postulaciones = await filas(base, `SELECT p.id, p.codigo, c.puesto FROM postulaciones p
+      JOIN convocatorias c ON c.id = p.convocatoria_id ORDER BY p.id DESC LIMIT 100`);
+    res.json({ convocatorias, postulaciones });
+  });
