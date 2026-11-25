@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import RevisionCurriculo from './RevisionCurriculo';
 
 const ruta = '/api/personal/curriculos';
 
@@ -10,6 +11,7 @@ export default function Curriculos({ alVencerSesion }) {
   const [errorCarga, setErrorCarga] = useState('');
   const [errorRegistro, setErrorRegistro] = useState('');
   const [codigoNuevo, setCodigoNuevo] = useState('');
+  const [postulacionAbierta, setPostulacionAbierta] = useState(null);
 
   useEffect(() => {
     const solicitud = new AbortController();
@@ -96,6 +98,17 @@ export default function Curriculos({ alVencerSesion }) {
     }
   }
 
+  if (postulacionAbierta !== null) {
+    return (
+      <RevisionCurriculo
+        key={postulacionAbierta}
+        id={postulacionAbierta}
+        alVolver={() => setPostulacionAbierta(null)}
+        alVencerSesion={alVencerSesion}
+      />
+    );
+  }
+
   return (
     <>
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
@@ -111,7 +124,9 @@ export default function Curriculos({ alVencerSesion }) {
         </button>
       </div>
 
-      {cargando && <p className="text-body-secondary" role="status">Cargando postulaciones…</p>}
+      {cargando && (
+        <p className="text-body-secondary" role="status">Cargando postulaciones…</p>
+      )}
       {errorCarga && <p className="alert alert-danger" role="alert">{errorCarga}</p>}
 
       {codigoNuevo && (
@@ -132,7 +147,9 @@ export default function Curriculos({ alVencerSesion }) {
                 ) : (
                   <form onSubmit={registrar}>
                     <fieldset disabled={cargando || guardando || Boolean(errorCarga)}>
-                      <label className="form-label" htmlFor="convocatoria">Convocatoria</label>
+                      <label className="form-label" htmlFor="convocatoria">
+                        Convocatoria
+                      </label>
                       <select
                         className="form-select mb-3"
                         id="convocatoria"
@@ -147,6 +164,7 @@ export default function Curriculos({ alVencerSesion }) {
                           </option>
                         ))}
                       </select>
+
                       <button className="btn btn-primary" type="submit">
                         {guardando ? 'Registrando…' : 'Registrar postulación'}
                       </button>
@@ -167,15 +185,24 @@ export default function Curriculos({ alVencerSesion }) {
                 <h2 className="h5 mb-3">Postulaciones registradas</h2>
 
                 {datos.postulaciones.length === 0 ? (
-                  <p className="text-body-secondary mb-0">Todavía no hay postulaciones registradas.</p>
+                  <p className="text-body-secondary mb-0">
+                    Todavía no hay postulaciones registradas.
+                  </p>
                 ) : (
                   <ul className="list-group list-group-flush">
                     {datos.postulaciones.map((postulacion) => (
                       <li
-                        className="list-group-item px-0 d-flex flex-wrap justify-content-between gap-2"
+                        className="list-group-item px-0 d-flex flex-wrap align-items-center justify-content-between gap-2"
                         key={postulacion.id}
                       >
-                        <span className="fw-semibold">{postulacion.puesto}</span>
+                        <button
+                          className="btn btn-link p-0 text-start fw-semibold"
+                          type="button"
+                          disabled={guardando}
+                          onClick={() => setPostulacionAbierta(postulacion.id)}
+                        >
+                          {postulacion.puesto}
+                        </button>
                         <code>{postulacion.codigo}</code>
                       </li>
                     ))}
