@@ -7,3 +7,7 @@ import { expedientesPersonal, expedientesPublicos } from './expedientes.js';
 import { curriculos } from './curriculos.js';
 import { ErrorHttp } from './validacion.js';
 
+const app = express();
+const base = crearBase();
+const clave = process.env.ADMIN_PASSWORD;
+const clienteDist = process.env.CLIENT_DIST || fileURLToPath(new URL('../../client/dist/', import.meta.url));
