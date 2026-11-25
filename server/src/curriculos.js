@@ -33,3 +33,13 @@ export function curriculos(base) {
       JOIN convocatorias c ON c.id = p.convocatoria_id ORDER BY p.id DESC LIMIT 100`);
     res.json({ convocatorias, postulaciones });
   });
+
+    router.post('/', async (req, res) => {
+    const convocatoriaId = entero(req.body?.convocatoria_id, 1, 65535, 'Convocatoria');
+    const [convocatoria] = await filas(base, 'SELECT id FROM convocatorias WHERE id = ?', [convocatoriaId]);
+    if (!convocatoria) throw new ErrorHttp(400, 'Selecciona una convocatoria válida.');
+    const codigo = randomBytes(6).toString('hex');
+    const alta = await filas(base, 'INSERT INTO postulaciones (convocatoria_id, codigo) VALUES (?, ?)',
+      [convocatoriaId, codigo]);
+    res.status(201).json({ id: String(alta.insertId), codigo });
+  });
