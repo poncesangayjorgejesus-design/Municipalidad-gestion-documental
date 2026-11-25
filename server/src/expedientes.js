@@ -120,3 +120,84 @@ export function expedientesPublicos(base) {
 
   return router;
 }
+
+export function expedientesPersonal(base) {
+  const router = Router();
+
+  router.get('/tipos', async (_req, res) => {
+    res.json(await filas(base, 'SELECT id, nombre, plazo_referencial FROM tipos_tramite ORDER BY id'));
+  });
+
+  router.get('/expedientes', async (req, res) => {
+    const busqueda = texto(req.query.q, 80, 'Búsqueda');
+    const estado = req.query.estado ?? '';
+    if (estado && !estadosValidos.has(estado)) throw new ErrorHttp(400, 'Selecciona un estado válido.');
+    const pagina = entero(Number(req.query.pagina ?? 1), 1, 1_000_000, 'Página');
+    const filtros = [
+      Number(req.query.alertas === '1'), estado, estado,
+      busqueda, busqueda, busqueda, busqueda,
+    ];
+    const condicion = `WHERE (? = 0 OR alerta = 1) AND (? = '' OR estado_codigo = ?)
+      AND (? = '' OR LOCATE(?, tipo) > 0 OR LOCATE(?, area) > 0 OR LOCATE(?, codigo) > 0)`;
+    const resultado = await transaccion(base, async (conexion) => {
+      const [conteo] = await filas(conexion, `SELECT COUNT(*) AS total FROM vista_expedientes ${condicion}`, filtros);
+      const total = Number(conteo.total);
+      const paginas = Math.max(1, Math.ceil(total / tamanoPagina));
+      const actual = Math.min(pagina, paginas);
+      const expedientes = await filas(conexion, `SELECT * FROM vista_expedientes ${condicion}
+        ORDER BY alerta DESC, IF(alerta = 1, diferencia, 0) DESC, id DESC
+        LIMIT ? OFFSET ?`, [...filtros, tamanoPagina, (actual - 1) * tamanoPagina]);
+      const [encuesta] = await filas(conexion, 'SELECT COUNT(*) cantidad, AVG(calificacion) promedio FROM encuestas');
+      const [resumen] = await filas(conexion, `SELECT COUNT(*) AS total,
+        COALESCE(SUM(estado_codigo <> 'resuelto'), 0) AS abiertos, COALESCE(SUM(alerta), 0) AS riesgos,
+        COALESCE(SUM(estado_codigo = 'resuelto'), 0) AS resueltos FROM vista_expedientes`);
+      return {
+        expedientes, encuesta,
+        resumen: Object.fromEntries(Object.entries(resumen).map(([clave, valor]) => [clave, Number(valor)])),
+        paginacion: { total, paginas, pagina: actual },
+      };
+    });
+    res.json(resultado);
+  });
+
+  router.get('/expedientes/areas', async (_req, res) => {
+    const areas = await filas(base, `SELECT area, COUNT(*) AS total,
+      SUM(estado_codigo <> 'resuelto') AS abiertos, SUM(alerta) AS riesgos,
+      SUM(estado_codigo = 'resuelto') AS resueltos
+      FROM vista_expedientes GROUP BY area ORDER BY riesgos DESC, abiertos DESC, area ASC`);
+    res.json(areas);
+  });
+
+  router.post('/expedientes/prediccion', async (req, res) => {
+    const { dias, plazo } = await calcularPrediccion(base, req.body ?? {});
+    res.json({ dias_estimados: dias, plazo, alerta: dias > plazo });
+  });
+
+  router.post('/expedientes', async (req, res) => {
+    const { tipoId, plazo, pendientes, anexos, derivaciones, dias } = await calcularPrediccion(base, req.body ?? {});
+    const codigo = randomBytes(16).toString('hex');
+    const id = await transaccion(base, async (conexion) => {
+      const alta = await filas(conexion, `INSERT INTO expedientes
+        (codigo, tipo_id, plazo_aplicado, pendientes, anexos_faltantes, derivaciones_previstas)
+        VALUES (?, ?, ?, ?, ?, ?)`, [codigo, tipoId, plazo, pendientes, anexos, derivaciones]);
+      await filas(conexion, `INSERT INTO predicciones (expediente_id, version_modelo, dias_estimados)
+        VALUES (?, ?, ?)`, [alta.insertId, versionModelo, dias]);
+      await registrarEvento(conexion, alta.insertId, 'recibido');
+      return String(alta.insertId);
+    });
+    res.status(201).json({ id, codigo });
+  });
+
+  router.get('/expedientes/:id', async (req, res) => {
+    const id = identificador(req.params.id);
+    const resultado = await transaccion(base, async (conexion) => {
+      const [expediente] = await filas(conexion, 'SELECT * FROM vista_expedientes WHERE id = ?', [id]);
+      if (!expediente) throw new ErrorHttp(404, 'Expediente no encontrado.');
+      const estados = await filas(conexion, `SELECT s.codigo, s.nombre FROM transiciones_tramite t
+        JOIN estados_tramite s ON s.codigo = t.destino WHERE t.origen = ? ORDER BY s.nombre`,
+      [expediente.estado_codigo]);
+      const documentos = await filas(conexion, 'SELECT id, nombre FROM documentos WHERE expediente_id = ? ORDER BY id DESC', [id]);
+      return { expediente, estados, documentos, historial: await historial(conexion, id) };
+    });
+    res.json(resultado);
+  });
