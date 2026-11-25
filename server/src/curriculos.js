@@ -43,3 +43,25 @@ export function curriculos(base) {
       [convocatoriaId, codigo]);
     res.status(201).json({ id: String(alta.insertId), codigo });
   });
+
+  router.get('/:id', async (req, res) => {
+    const id = identificador(req.params.id);
+    const detalle = await transaccion(base, async (conexion) => {
+      const actual = await cargarPostulacion(conexion, id);
+      const decisiones = await filas(conexion, 'SELECT codigo, nombre FROM decisiones_cv ORDER BY nombre');
+      const eventos = await filas(conexion, `SELECT r.id, d.nombre decision, r.motivo, r.prob_revision, r.fecha,
+        q.descripcion, v.resultado
+        FROM revisiones_cv r JOIN decisiones_cv d ON d.codigo = r.decision_codigo
+        JOIN verificaciones_cv v ON v.revision_id = r.id
+        JOIN requisitos_cv q ON q.id = v.requisito_id
+        WHERE r.postulacion_id = ? ORDER BY r.id DESC, q.id`, [id]);
+      const revisiones = new Map();
+      for (const evento of eventos) {
+        const { descripcion, resultado, ...revision } = evento;
+        if (!revisiones.has(evento.id)) revisiones.set(evento.id, { ...revision, requisitos: [] });
+        revisiones.get(evento.id).requisitos.push({ descripcion, resultado });
+      }
+      return { ...actual, decisiones, revisiones: Array.from(revisiones.values()) };
+    });
+    res.json(detalle);
+  });
