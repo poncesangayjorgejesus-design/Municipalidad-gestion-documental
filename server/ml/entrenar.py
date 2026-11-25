@@ -88,3 +88,35 @@ def entrenar_tramites(azar):
         "mae_referencia_dias": round(float(np.mean(np.abs(esperado - dias[:420].mean()))), 3),
         **metricas_alerta(esperado > plazo[510:], predicho > plazo[510:]),
     }
+
+
+def entrenar_cv(azar):
+    total = azar.integers(3, 9, 600)
+    faltantes = azar.binomial(total, 0.12)
+    ilegibles = azar.binomial(total - faltantes, 0.10)
+    entradas = entrada_cv(total, faltantes, ilegibles)
+    requiere_revision = ((faltantes + ilegibles) > 0).astype("float32")
+    modelo = entrenar_modelo(entradas, requiere_revision, clasificacion=True)
+    predicho = modelo(entradas[510:], training=False).numpy().ravel() >= 0.5
+    esperado = requiere_revision[510:] == 1
+    modelo.save(CARPETA_MODELOS / "revision_cv.keras")
+    return {"exactitud": round(float(np.mean(predicho == esperado)), 4),
+            **metricas_alerta(esperado, predicho)}
+
+
+def main():
+    keras.utils.set_random_seed(42)
+    azar = np.random.default_rng(42)
+    CARPETA_MODELOS.mkdir(exist_ok=True)
+    metricas = {
+        "version": VERSION, "datos": "simulados", "entrenamiento": 420,
+        "validacion": 90, "prueba": 90,
+        "tramites": entrenar_tramites(azar), "curriculos": entrenar_cv(azar),
+    }
+    resultado = json.dumps(metricas, indent=2, ensure_ascii=False)
+    (CARPETA_MODELOS / "metricas.json").write_text(resultado + "\n", encoding="utf-8")
+    print(resultado)
+
+
+if __name__ == "__main__":
+    main()
