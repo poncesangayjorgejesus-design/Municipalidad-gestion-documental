@@ -8,7 +8,7 @@ node_modules/
 .env.*
 !.env.example
 .venv/
-
+__pycache__/
 # Archivos generados
 dist/
 client/dist/
