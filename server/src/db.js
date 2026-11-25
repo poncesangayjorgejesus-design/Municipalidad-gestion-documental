@@ -22,3 +22,8 @@ export function crearBase() {
   });
   return pool;
 }
+
+export async function filas(base, sql, parametros = []) {
+  const [resultado] = await base.execute(sql, parametros);
+  return resultado;
+}
