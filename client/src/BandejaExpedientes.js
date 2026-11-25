@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import FichaExpediente from './FichaExpediente';
 import RegistroExpediente from './RegistroExpediente';
 
 const estados = {
@@ -26,6 +27,7 @@ function mostrarDias(valor) {
 
 export default function BandejaExpedientes({ alVencerSesion }) {
   const [entrada, setEntrada] = useState('');
+  const [expedienteAbierto, setExpedienteAbierto] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState('');
   const [soloAlertas, setSoloAlertas] = useState(false);
@@ -87,6 +89,21 @@ export default function BandejaExpedientes({ alVencerSesion }) {
     setPagina(1);
   }
 
+  function actualizarBandeja() {
+    setActualizacion((anterior) => anterior + 1);
+  }
+
+  if (expedienteAbierto !== null) {
+    return (
+      <FichaExpediente
+        key={expedienteAbierto}
+        id={expedienteAbierto}
+        alVolver={() => setExpedienteAbierto(null)}
+        alVencerSesion={alVencerSesion}
+      />
+    );
+  }
+
   return (
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -94,7 +111,7 @@ export default function BandejaExpedientes({ alVencerSesion }) {
         <button
           className="btn btn-outline-secondary"
           type="button"
-          onClick={() => setActualizacion((anterior) => anterior + 1)}
+          onClick={actualizarBandeja}
           disabled={cargando}
         >
           <i className="bi bi-arrow-clockwise me-2" aria-hidden="true" />
@@ -103,32 +120,34 @@ export default function BandejaExpedientes({ alVencerSesion }) {
       </div>
 
       {datos && (
-        <dl className="row g-3 mb-4">
+        <div className="row g-3 mb-4">
           {indicadores.map(([clave, titulo]) => (
             <div className="col-6 col-lg-3" key={clave}>
-              <div className="card portada-yau shadow-sm h-100">
+              <dl className="card portada-yau shadow-sm h-100 mb-0">
                 <div className="card-body">
                   <dt className="small text-body-secondary">{titulo}</dt>
                   <dd className="fs-3 fw-semibold mb-0">{datos.resumen[clave]}</dd>
                 </div>
-              </div>
+              </dl>
             </div>
           ))}
-        </dl>
+        </div>
       )}
 
       <RegistroExpediente
         alVencerSesion={alVencerSesion}
-        alRegistrar={() => setActualizacion((anterior) => anterior + 1)}
+        alRegistrar={actualizarBandeja}
       />
-      
+
       <section className="card portada-yau shadow-sm" aria-labelledby="titulo-bandeja">
         <div className="card-body p-3 p-md-4">
           <h2 className="h5 mb-3" id="titulo-bandeja">Bandeja de expedientes</h2>
 
           <div className="row g-3 align-items-end mb-4">
             <form className="col-lg-6" onSubmit={buscar}>
-              <label className="form-label" htmlFor="buscar-expediente">Buscar expediente</label>
+              <label className="form-label" htmlFor="buscar-expediente">
+                Buscar expediente
+              </label>
               <div className="input-group">
                 <input
                   className="form-control"
@@ -172,12 +191,16 @@ export default function BandejaExpedientes({ alVencerSesion }) {
                     setPagina(1);
                   }}
                 />
-                <label className="form-check-label" htmlFor="solo-alertas">Solo riesgo de demora</label>
+                <label className="form-check-label" htmlFor="solo-alertas">
+                  Solo riesgo de demora
+                </label>
               </div>
             </div>
           </div>
 
-          {cargando && <p className="text-body-secondary mb-0" role="status">Cargando expedientes…</p>}
+          {cargando && (
+            <p className="text-body-secondary mb-0" role="status">Cargando expedientes…</p>
+          )}
           {error && <p className="alert alert-danger mb-0" role="alert">{error}</p>}
 
           {!cargando && datos && (
@@ -197,7 +220,13 @@ export default function BandejaExpedientes({ alVencerSesion }) {
                     {datos.expedientes.map((fila) => (
                       <tr key={fila.id}>
                         <th scope="row">
-                          {fila.tipo}
+                          <button
+                            className="btn btn-link p-0 text-start fw-semibold"
+                            type="button"
+                            onClick={() => setExpedienteAbierto(fila.id)}
+                          >
+                            {fila.tipo}
+                          </button>
                           <small className="d-block text-body-secondary fw-normal">{fila.area}</small>
                           <code className="d-block text-break fw-normal">{fila.codigo}</code>
                         </th>
@@ -241,7 +270,9 @@ export default function BandejaExpedientes({ alVencerSesion }) {
                   >
                     Anterior
                   </button>
-                  <span className="small">{datos.paginacion.pagina} / {datos.paginacion.paginas}</span>
+                  <span className="small">
+                    {datos.paginacion.pagina} / {datos.paginacion.paginas}
+                  </span>
                   <button
                     className="btn btn-sm btn-outline-secondary"
                     type="button"
