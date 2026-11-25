@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import EncuestaAtencion from './EncuestaAtencion';
 
 const formatoFecha = new Intl.DateTimeFormat('es-PE', {
   dateStyle: 'medium',
@@ -109,12 +110,18 @@ function ResultadoExpediente({ codigo }) {
   }
 
   if (!datos) {
-    return error
-      ? <p className="alert alert-danger mt-3 mb-0" role="alert">{error}</p>
-      : <p className="text-body-secondary mt-3 mb-0" role="status">Consultando expediente…</p>;
+    return error ? (
+      <p className="alert alert-danger mt-3 mb-0" role="alert">
+        {error}
+      </p>
+    ) : (
+      <p className="text-body-secondary mt-3 mb-0" role="status">
+        Consultando expediente…
+      </p>
+    );
   }
 
-  const { expediente, historial } = datos;
+  const { expediente, historial, encuestado } = datos;
   const pendientes = historial.filter((aviso) => !aviso.leido).length;
 
   return (
@@ -172,6 +179,10 @@ function ResultadoExpediente({ codigo }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {expediente.estado_codigo === 'resuelto' && (
+        <EncuestaAtencion ruta={ruta} encuestado={encuestado} />
       )}
     </section>
   );
