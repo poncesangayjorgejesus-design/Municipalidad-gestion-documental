@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import FichaExpediente from './FichaExpediente';
 import RegistroExpediente from './RegistroExpediente';
+import ResumenTramites from './ResumenTramites';
 
 const estados = {
   recibido: { nombre: 'Recibido', color: 'text-bg-secondary' },
@@ -63,9 +64,7 @@ export default function BandejaExpedientes({ alVencerSesion }) {
           return;
         }
 
-        if (!respuesta.ok) {
-          throw new Error('No se pudo cargar la bandeja.');
-        }
+        if (!respuesta.ok) throw new Error('No se pudo cargar la bandeja.');
 
         const resultado = await respuesta.json();
         if (!solicitud.signal.aborted) setDatos(resultado);
@@ -151,9 +150,7 @@ export default function BandejaExpedientes({ alVencerSesion }) {
 
           <div className="row g-3 align-items-end mb-4">
             <form className="col-lg-6" onSubmit={buscar}>
-              <label className="form-label" htmlFor="buscar-expediente">
-                Buscar expediente
-              </label>
+              <label className="form-label" htmlFor="buscar-expediente">Buscar expediente</label>
               <div className="input-group">
                 <input
                   className="form-control"
@@ -207,7 +204,6 @@ export default function BandejaExpedientes({ alVencerSesion }) {
           {cargando && (
             <p className="text-body-secondary mb-0" role="status">Cargando expedientes…</p>
           )}
-
           {!cargando && error && (
             <p className="alert alert-danger mb-0" role="alert">{error}</p>
           )}
@@ -296,6 +292,14 @@ export default function BandejaExpedientes({ alVencerSesion }) {
           )}
         </div>
       </section>
+
+      {datos && (
+        <ResumenTramites
+          encuesta={datos.encuesta}
+          actualizacion={actualizacion}
+          alVencerSesion={alVencerSesion}
+        />
+      )}
     </>
   );
 }
