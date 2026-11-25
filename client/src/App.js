@@ -1,3 +1,4 @@
+import ConsultaExpediente from './ConsultaExpediente';
 import './estilos.css';
 
 function App() {
@@ -25,6 +26,8 @@ function App() {
                   Usa el código que te entregaron en Mesa de Partes para
                   consultar el estado de tu trámite.
                 </p>
+
+                <ConsultaExpediente />
               </div>
             </section>
           </div>

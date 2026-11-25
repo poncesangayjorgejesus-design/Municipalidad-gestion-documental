@@ -30,3 +30,9 @@
   --bs-card-border-color: #e0dbe9;
   border-top: 4px solid #8264b6;
 }
+.portada-yau .btn-primary {
+  --bs-btn-bg: #5a3ca0;
+  --bs-btn-border-color: #5a3ca0;
+  --bs-btn-hover-bg: #442a7b;
+  --bs-btn-hover-border-color: #442a7b;
+}
