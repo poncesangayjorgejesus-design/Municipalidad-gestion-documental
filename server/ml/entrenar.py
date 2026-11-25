@@ -64,3 +64,27 @@ def metricas_alerta(real, estimado):
         "recall": round(aciertos / positivos, 4) if positivos else None,
         "positivos_prueba": positivos,
     }
+
+
+def entrenar_tramites(azar):
+    tipo = azar.integers(0, len(TIPOS), 600)
+    pendientes, anexos, derivaciones = [
+        azar.integers(0, maximo + 1, 600) for maximo in LIMITES_TRAMITE
+    ]
+    entradas = entrada_tramite([TIPOS[i] for i in tipo], pendientes, anexos, derivaciones)
+    base = np.array([3, 5, 2])[tipo]
+    plazo = np.array([7, 10, 5])[tipo]
+    ruido = azar.normal(0, 0.65, len(tipo))
+    dias = np.maximum(base + 0.18 * pendientes + 0.70 * anexos + 1.10 * derivaciones + ruido, 0)
+    dias = dias.astype("float32")
+    modelo = entrenar_modelo(entradas, dias)
+    esperado = dias[510:]
+    predicho = np.maximum(modelo(entradas[510:], training=False).numpy().ravel(), 0)
+    error = esperado - predicho
+    modelo.save(CARPETA_MODELOS / "tramites.keras")
+    return {
+        "mae_dias": round(float(np.mean(np.abs(error))), 3),
+        "mse_dias2": round(float(np.mean(error**2)), 3),
+        "mae_referencia_dias": round(float(np.mean(np.abs(esperado - dias[:420].mean()))), 3),
+        **metricas_alerta(esperado > plazo[510:], predicho > plazo[510:]),
+    }
