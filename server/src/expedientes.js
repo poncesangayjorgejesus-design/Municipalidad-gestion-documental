@@ -201,3 +201,44 @@ export function expedientesPersonal(base) {
     });
     res.json(resultado);
   });
+
+  router.post('/expedientes/:id/estado', async (req, res) => {
+    const id = identificador(req.params.id);
+    const evento = identificador(req.body?.historial_id);
+    const destino = texto(req.body?.destino, 16, 'Nuevo estado', true);
+    await transaccion(base, async (conexion) => {
+      const [existe] = await filas(conexion, 'SELECT id FROM expedientes WHERE id = ? FOR UPDATE', [id]);
+      if (!existe) throw new ErrorHttp(404, 'Expediente no encontrado.');
+      const [actual] = await filas(conexion, `SELECT id, estado_codigo FROM historial_tramite
+        WHERE expediente_id = ? ORDER BY id DESC LIMIT 1 FOR UPDATE`, [id]);
+      if (!actual || String(actual.id) !== evento) throw new ErrorHttp(409, 'El estado cambió. Actualiza la ficha.');
+      const [transicion] = await filas(conexion, 'SELECT 1 FROM transiciones_tramite WHERE origen = ? AND destino = ?',
+        [actual.estado_codigo, destino]);
+      if (!transicion) throw new ErrorHttp(400, 'Transición de estado no permitida.');
+      await registrarEvento(conexion, id, destino);
+    });
+    notificarCambio(id);
+    res.sendStatus(204);
+  });
+
+  router.post('/expedientes/:id/documentos', subir.single('pdf'), async (req, res) => {
+    const id = identificador(req.params.id);
+    const archivo = req.file;
+    if (!archivo || !/\.pdf$/i.test(archivo.originalname) || archivo.buffer.subarray(0, 5).toString() !== '%PDF-') {
+      throw new ErrorHttp(400, 'Selecciona un PDF de hasta 2 MB.');
+    }
+    const nombre = archivo.originalname.replace(/[^a-zA-Z0-9._ -]/g, '_').slice(-150);
+    const [existe] = await filas(base, 'SELECT id FROM expedientes WHERE id = ?', [id]);
+    if (!existe) throw new ErrorHttp(404, 'Expediente no encontrado.');
+    await filas(base, 'INSERT INTO documentos (expediente_id, nombre, contenido) VALUES (?, ?, ?)', [id, nombre, archivo.buffer]);
+    res.sendStatus(204);
+  });
+
+  router.get('/documentos/:id', async (req, res) => {
+    const [documento] = await filas(base, 'SELECT nombre, contenido FROM documentos WHERE id = ?', [identificador(req.params.id)]);
+    if (!documento) throw new ErrorHttp(404, 'Documento no encontrado.');
+    res.attachment(documento.nombre).type('application/pdf').send(documento.contenido);
+  });
+
+  return router;
+}
