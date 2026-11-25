@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const formatoFecha = new Intl.DateTimeFormat('es-PE', {
   dateStyle: 'medium',
@@ -7,12 +7,15 @@ const formatoFecha = new Intl.DateTimeFormat('es-PE', {
 });
 
 function ResultadoExpediente({ codigo }) {
+  const ruta = `/api/consulta/${codigo}`;
+  const recargar = useRef(null);
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
   const [enVivo, setEnVivo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [errorLectura, setErrorLectura] = useState('');
 
   useEffect(() => {
-    const ruta = `/api/consulta/${codigo}`;
     let solicitud;
     let conexion;
 
@@ -64,13 +67,46 @@ function ResultadoExpediente({ codigo }) {
       conexion.addEventListener('cambio', cargar);
     }
 
+    recargar.current = cargar;
     iniciar();
 
     return () => {
+      recargar.current = null;
       solicitud?.abort();
       conexion?.close();
     };
-  }, [codigo]);
+  }, [ruta]);
+
+  async function marcarLeidos() {
+    if (guardando) return;
+
+    // La API devuelve primero el aviso más reciente.
+    const hasta = datos.historial[0].id;
+    setGuardando(true);
+    setErrorLectura('');
+
+    try {
+      const respuesta = await fetch(`${ruta}/avisos/leidos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hasta }),
+      });
+
+      if (!respuesta.ok) {
+        throw new Error('No se pudo guardar la lectura.');
+      }
+
+      await recargar.current?.();
+    } catch {
+      if (recargar.current) {
+        setErrorLectura('No se pudieron marcar los avisos. Intenta nuevamente.');
+      }
+    } finally {
+      if (recargar.current) {
+        setGuardando(false);
+      }
+    }
+  }
 
   if (!datos) {
     return error
@@ -79,6 +115,7 @@ function ResultadoExpediente({ codigo }) {
   }
 
   const { expediente, historial } = datos;
+  const pendientes = historial.filter((aviso) => !aviso.leido).length;
 
   return (
     <section className="mt-4 border-top pt-3" aria-label="Resultado de la consulta">
@@ -96,13 +133,35 @@ function ResultadoExpediente({ codigo }) {
 
       {error && <p className="alert alert-warning" role="alert">{error}</p>}
 
-      <h4 className="h6 mt-3">Historial de estados</h4>
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+        <h4 className="h6 mb-0">Historial de estados</h4>
+        {pendientes > 0 && (
+          <button
+            className="btn btn-sm btn-outline-primary"
+            type="button"
+            onClick={marcarLeidos}
+            disabled={guardando}
+          >
+            {guardando ? 'Guardando…' : 'Marcar avisos como leídos'}
+          </button>
+        )}
+      </div>
+
+      <p className="small text-body-secondary mt-2" role="status">
+        {pendientes > 0 ? `Avisos sin leer: ${pendientes}` : 'Sin avisos pendientes'}
+      </p>
+
+      {errorLectura && <p className="alert alert-danger" role="alert">{errorLectura}</p>}
+
       {historial.length === 0 ? (
         <p className="text-body-secondary mb-0">Todavía no hay movimientos registrados.</p>
       ) : (
         <ul className="list-group list-group-flush">
           {historial.map((aviso) => (
-            <li className="list-group-item px-0 d-flex flex-wrap justify-content-between gap-2" key={aviso.id}>
+            <li
+              className="list-group-item px-0 d-flex flex-wrap justify-content-between gap-2"
+              key={aviso.id}
+            >
               <span>
                 {aviso.estado}
                 {!aviso.leido && <span className="badge text-bg-primary ms-2">Nuevo</span>}
