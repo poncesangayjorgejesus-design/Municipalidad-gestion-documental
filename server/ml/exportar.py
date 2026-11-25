@@ -23,3 +23,17 @@ def exportar(archivo):
         "sesgo": float(sesgo[0]),
         "activacion": densa.activation.__name__,
     }
+
+
+def main():
+    datos = {
+        "version": VERSION,
+        "tipos": TIPOS,
+        "tramites": exportar("tramites.keras"),
+        "curriculos": exportar("revision_cv.keras"),
+    }
+    (MODELOS / "pesos.json").write_text(json.dumps(datos, indent=2) + "\n", encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()
