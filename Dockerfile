@@ -12,7 +12,7 @@ COPY server/package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY --chown=node:node server/src/ ./src/
 COPY --chown=node:node server/ml/modelos/pesos.json ./ml/modelos/
-COPY --from=interfaz --chown=node:node /app/client/dist/ /app/client/dist/
+COPY --from=interfaz --chown=node:node /app/client/build/ /app/client/build/
 USER node
 EXPOSE 8000
 CMD ["node", "src/index.js"]
