@@ -10,7 +10,7 @@ services:
         published: "${HOST_PORT:-5000}"
         host_ip: "${HOST_BIND_IP:-127.0.0.1}"
     environment:
-      DB_HOST: mysql-yau
+      DB_HOST: "mysql-yau"
       DB_PORT: "3306"
       DB_NAME: "${DB_NAME:-municipalidad_yau}"
       DB_USER: "${DB_USER:-app_yau}"
