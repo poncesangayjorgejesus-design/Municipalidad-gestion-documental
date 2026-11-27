@@ -1,0 +1,21 @@
+{
+  "version": "demo-2026-v1",
+  "datos": "simulados",
+  "entrenamiento": 420,
+  "validacion": 90,
+  "prueba": 90,
+  "tramites": {
+    "mae_dias": 0.503,
+    "mse_dias2": 0.393,
+    "mae_referencia_dias": 2.121,
+    "precision": 0.9487,
+    "recall": 1.0,
+    "positivos_prueba": 74
+  },
+  "curriculos": {
+    "exactitud": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "positivos_prueba": 67
+  }
+}
